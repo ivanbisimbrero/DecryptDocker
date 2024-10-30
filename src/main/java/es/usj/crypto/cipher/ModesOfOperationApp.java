@@ -63,15 +63,15 @@ public class ModesOfOperationApp {
 
         // Encrypt the image using DES and AES ciphers with different modes of operation.
         // ECB (Electronic Code Book) and CBC (Cipher Block Chaining) are demonstrated.
-        encrypt("DES/ECB/PKCS5Padding");
-        encrypt("DES/CBC/PKCS5Padding");
-        encrypt("AES/ECB/PKCS5Padding");
-        encrypt("AES/CBC/PKCS5Padding");
+        SecretKey key1 = encrypt("DES/ECB/PKCS5Padding");
+        SecretKey key2 = encrypt("DES/CBC/PKCS5Padding");
+        SecretKey key3 =encrypt("AES/ECB/PKCS5Padding");
+        SecretKey key4 =encrypt("AES/CBC/PKCS5Padding");
 
-        decrypt("DES/ECB/PKCS5Padding");
-        decrypt("DES/CBC/PKCS5Padding");
-        decrypt("AES/ECB/PKCS5Padding");
-        decrypt("AES/CBC/PKCS5Padding");
+        decrypt("DES/ECB/PKCS5Padding", key1);
+        decrypt("DES/CBC/PKCS5Padding", key2);
+        decrypt("AES/ECB/PKCS5Padding", key3);
+        decrypt("AES/CBC/PKCS5Padding", key4);
 
     }
 
@@ -87,7 +87,7 @@ public class ModesOfOperationApp {
      *                       The transformation string includes the algorithm, mode of operation, and padding scheme.
      * @throws Exception if an error occurs during the encryption process.
      */
-    private static void encrypt(String transformation) throws Exception {
+    private static SecretKey encrypt(String transformation) throws Exception {
 
         // Create a Cipher instance using the specified transformation.
         Cipher cipher = Cipher.getInstance(transformation);
@@ -123,6 +123,8 @@ public class ModesOfOperationApp {
             // Encrypt and write the image data (the pixels) to the output file.
             cipherOut.write(imgData);
         }
+
+        return secretKey;
     }
 
     /**
@@ -140,23 +142,10 @@ public class ModesOfOperationApp {
                 ".bmp";
     }
 
-    public static void decrypt(String transformation) throws Exception {
-        String algorithm = transformation.split("/")[0];
-        String mode = transformation.split("/")[1];
-
-        // Ajusta la clave y el IV según sea necesario
-        byte[] keyBytes = new byte[16]; // Ajusta el tamaño de la clave según el algoritmo
-        byte[] ivBytes = new byte[16]; // Ajusta el tamaño del IV según el modo
-
-        Key key = new SecretKeySpec(keyBytes, algorithm);
-        IvParameterSpec iv = new IvParameterSpec(ivBytes);
+    public static void decrypt(String transformation, SecretKey key) throws Exception {
 
         Cipher cipher = Cipher.getInstance(transformation);
-        if (mode.equals("ECB")) {
-            cipher.init(Cipher.DECRYPT_MODE, key);
-        } else {
-            cipher.init(Cipher.DECRYPT_MODE, key, iv);
-        }
+        cipher.init(Cipher.DECRYPT_MODE, key);
 
         try (InputStream fileIn = new FileInputStream(INPUT_FILE);
              CipherInputStream cipherIn = new CipherInputStream(fileIn, cipher);
