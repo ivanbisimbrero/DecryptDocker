@@ -1,11 +1,17 @@
 package es.usj.crypto.cipher;
 
 import javax.crypto.Cipher;
+import javax.crypto.CipherInputStream;
 import javax.crypto.CipherOutputStream;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.security.Key;
 import java.util.Arrays;
 
 /**
@@ -28,6 +34,7 @@ public class ModesOfOperationApp {
      * Adjust this path to a valid directory on your system.
      */
     public static final String OUTPUT_FOLDER = "/Users/ivano/Documents/tmp";
+    public static final String INPUT_FILE = "src/main/resources/logo-usj.bmp";
 
     /**
      * BMP header length in bytes (54 bytes for BMP images).
@@ -133,43 +140,33 @@ public class ModesOfOperationApp {
                 ".bmp";
     }
 
-    private static void decrypt(String transformation) throws Exception {
-        // Create a Cipher instance using the specified transformation.
+    public static void decrypt(String transformation) throws Exception {
+        String algorithm = transformation.split("/")[0];
+        String mode = transformation.split("/")[1];
+
+        // Ajusta la clave y el IV según sea necesario
+        byte[] keyBytes = new byte[16]; // Ajusta el tamaño de la clave según el algoritmo
+        byte[] ivBytes = new byte[16]; // Ajusta el tamaño del IV según el modo
+
+        Key key = new SecretKeySpec(keyBytes, algorithm);
+        IvParameterSpec iv = new IvParameterSpec(ivBytes);
+
         Cipher cipher = Cipher.getInstance(transformation);
+        if (mode.equals("ECB")) {
+            cipher.init(Cipher.DECRYPT_MODE, key);
+        } else {
+            cipher.init(Cipher.DECRYPT_MODE, key, iv);
+        }
 
-        // Extract the algorithm name from the transformation string (e.g., "DES" or "AES").
-        String algorithm = transformation.substring(0, transformation.indexOf("/"));
+        try (InputStream fileIn = new FileInputStream(INPUT_FILE);
+             CipherInputStream cipherIn = new CipherInputStream(fileIn, cipher);
+             OutputStream fileOut = new FileOutputStream(OUTPUT_FOLDER + "/decrypted_" + transformation + ".bmp")) {
 
-        // Generate a secret key for the chosen algorithm (DES or AES).
-        SecretKey secretKey = KeyGenerator.getInstance(algorithm).generateKey();
-
-        // Initialize the Cipher in ENCRYPT_MODE with the generated secret key.
-        cipher.init(Cipher.DECRYPT_MODE, secretKey);
-
-        // Determine the output file name based on the cipher and mode of operation.
-        String fileNameOutput = getFileName(transformation);
-
-        // Load the input BMP file, prepare the output file, and apply the encryption.
-        /*
-         * New changes, we are going to decrypt the image, so we swap the input and output files
-         */
-        try (InputStream fileIn = ModesOfOperationApp.class.getClassLoader().getResourceAsStream(fileNameOutput);
-             FileOutputStream fileOut = new FileOutputStream(OUTPUT_FOLDER + fileNameInput);
-             CipherOutputStream cipherOut = new CipherOutputStream(fileOut, cipher)) {
-
-            // Read the entire BMP file into a byte array.
-            byte[] inputBmp = fileIn.readAllBytes();
-
-            // Separate the BMP header (54 bytes) from the image data.
-            byte[] header = Arrays.copyOfRange(inputBmp, 0, BMP_BYTE_HEADER_LENGTH);
-            byte[] imgData = Arrays.copyOfRange(inputBmp, BMP_BYTE_HEADER_LENGTH, inputBmp.length);
-
-            // Write the unencrypted header to the output file.
-            fileOut.write(header);
-            fileOut.flush();
-
-            // Encrypt and write the image data (the pixels) to the output file.
-            cipherOut.write(imgData);
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = cipherIn.read(buffer)) != -1) {
+                fileOut.write(buffer, 0, bytesRead);
+            }
         }
     }
 }
